@@ -16,7 +16,7 @@ require __DIR__ . '/auth.php';
 // Rotte admin protette
 Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(function () {
     // Dashboard
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Gestione progetti
     Route::resource('projects', AdminProjectController::class);
