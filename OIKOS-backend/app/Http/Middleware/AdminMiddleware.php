@@ -10,9 +10,16 @@ class AdminMiddleware
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
-        if (! $user || ! in_array($user->role ?? null, ['admin', 'editor'])) {
-            return response()->json(['message' => 'Forbidden'], 403);
+
+        // Adatta se usi ruoli diversi
+        if (! $user || ! in_array($user->role ?? 'user', ['admin', 'editor'])) {
+            abort(403, 'Forbidden');
         }
+
+        if (property_exists($user, 'is_active') && ! $user->is_active) {
+            abort(403, 'Account disabilitato');
+        }
+
         return $next($request);
     }
 }
