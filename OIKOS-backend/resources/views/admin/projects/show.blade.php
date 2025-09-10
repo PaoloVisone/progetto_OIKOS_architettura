@@ -13,20 +13,38 @@
                     <span>/</span>
                     <span class="text-gray-900">{{ $project->title }}</span>
                 </nav>
-                <div class="flex items-center space-x-3">
-                    <h1 class="text-2xl font-bold text-gray-900">{{ $project->title }}</h1>
-                    <span class="badge @if($project->status === 'published') badge-success @else badge-warning @endif">
-                        {{ $project->status === 'published' ? 'Pubblicato' : 'Bozza' }}
-                    </span>
-                    @if($project->featured)
-                        <span class="badge badge-info">In evidenza</span>
-                    @endif
+
+                <div class="flex items-center flex-wrap gap-2">
+                    <div class="flex items-center space-x-3">
+                        <h1 class="text-2xl font-bold text-gray-900">{{ $project->title }}</h1>
+
+                        @php
+                            $isFeatured = $project->is_featured ?? $project->featured ?? false;
+                        @endphp
+    
+                        <span class="badge
+                            @if($project->status === 'published') badge-success
+                            @elseif($project->status === 'archived') badge-warning
+                            @else badge-warning @endif">
+                            {{ $project->status === 'published' ? 'Pubblicato' : ($project->status === 'archived' ? 'Archiviato' : 'Bozza') }}
+                        </span>
+    
+                        @if($isFeatured)
+                            <span class="badge badge-info">In evidenza</span>
+                        @endif
+    
+                        @if(optional($project->category)->name)
+                            <span class="badge">{{ $project->category->name }}</span>
+                        @endif>
+                 </div>
                 </div>
+
                 <p class="mt-1 text-sm text-gray-600">
-                    Creato {{ $project->created_at->format('d/m/Y H:i') }} • 
+                    Creato {{ $project->created_at->format('d/m/Y H:i') }} •
                     Aggiornato {{ $project->updated_at->diffForHumans() }}
                 </p>
             </div>
+
             <div class="flex items-center space-x-3">
                 <!-- Toggle Status -->
                 <form action="{{ route('admin.projects.toggle-status', $project) }}" method="POST" class="inline">
@@ -46,7 +64,7 @@
                         @endif
                     </button>
                 </form>
-                
+
                 <a href="{{ route('admin.projects.edit', $project) }}" class="btn btn-secondary btn-sm">
                     <svg class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -71,7 +89,7 @@
                             <p class="text-sm text-gray-600 font-mono bg-gray-50 px-3 py-2 rounded">{{ $project->slug }}</p>
                         </div>
 
-                        <!-- Description -->
+                        <!-- Descrizione breve -->
                         @if($project->description)
                             <div class="mb-4">
                                 <label class="form-label">Descrizione</label>
@@ -79,21 +97,97 @@
                             </div>
                         @endif
 
-                        <!-- Content -->
-                        @if($project->content)
+                        <!-- Contenuto lungo -->
+                        @if(!empty($project->long_description ?? $project->content))
                             <div class="mb-4">
                                 <label class="form-label">Contenuto</label>
                                 <div class="prose prose-sm max-w-none text-gray-700">
-                                    {!! nl2br(e($project->content)) !!}
+                                    {!! nl2br(e($project->long_description ?? $project->content)) !!}
                                 </div>
                             </div>
                         @endif
 
-                        <!-- SEO Info -->
+                        <!-- Metadati dalla tabella projects -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t pt-4">
+                            @if(optional($project->category)->name)
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500">Categoria</label>
+                                    <p class="text-sm text-gray-900">{{ $project->category->name }}</p>
+                                </div>
+                            @endif
+
+                            @if($project->client)
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500">Cliente</label>
+                                    <p class="text-sm text-gray-900">{{ $project->client }}</p>
+                                </div>
+                            @endif
+
+                            @if($project->location)
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500">Luogo</label>
+                                    <p class="text-sm text-gray-900">{{ $project->location }}</p>
+                                </div>
+                            @endif
+
+                            @if($project->project_date)
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500">Data Progetto</label>
+                                    <p class="text-sm text-gray-900">
+                                        {{ \Illuminate\Support\Carbon::parse($project->project_date)->format('d/m/Y') }}
+                                    </p>
+                                </div>
+                            @endif
+
+                            @if(!is_null($project->area))
+                                <div>
+                                    <label class="text-xs font-medium text-gray-500">Area</label>
+                                    <p class="text-sm text-gray-900">{{ number_format($project->area, 2, ',', '.') }} m²</p>
+                                </div>
+                            @endif
+
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Ordinamento</label>
+                                <p class="text-sm text-gray-900">{{ $project->sort_order }}</p>
+                            </div>
+
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">In evidenza</label>
+                                <p class="text-sm text-gray-900">{{ $isFeatured ? 'Sì' : 'No' }}</p>
+                            </div>
+
+                            @php
+                                $tags = is_array($project->tags)
+                                    ? $project->tags
+                                    : (empty($project->tags) ? [] : (json_decode($project->tags, true) ?: []));
+                            @endphp
+                            @if(!empty($tags))
+                                <div class="sm:col-span-2">
+                                    <label class="text-xs font-medium text-gray-500">Tag</label>
+                                    <div class="mt-1 flex flex-wrap gap-2">
+                                        @foreach($tags as $tag)
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                                {{ $tag }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+
+                        @if($project->featured_image)
+                            <div class="border-t pt-4 mt-4">
+                                <label class="text-xs font-medium text-gray-500 block mb-2">Immagine di copertina</label>
+                                <img src="{{ Storage::url($project->featured_image) }}" alt="Featured image"
+                                     class="rounded-lg border max-h-64 object-cover">
+                            </div>
+                        @endif
+
+                        <!-- SEO (se li usi) -->
                         @if($project->meta_title || $project->meta_description)
-                            <div class="border-t pt-4">
+                            <div class="border-t pt-4 mt-4">
                                 <h3 class="text-sm font-medium text-gray-900 mb-3">SEO</h3>
-                                
+
                                 @if($project->meta_title)
                                     <div class="mb-2">
                                         <label class="text-xs font-medium text-gray-500">Meta Title</label>
@@ -118,7 +212,7 @@
                         <h2 class="text-lg font-medium text-gray-900">
                             Media ({{ $project->media->count() }})
                         </h2>
-                        <a href="{{ route('admin.projects.media.index', $project) }}" 
+                         <a href="{{ route('admin.projects.media.index', $project) }}" 
                            class="btn btn-primary btn-sm">
                             <svg class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -133,8 +227,8 @@
                                 @foreach($project->media->take(8) as $media)
                                     <div class="relative aspect-square group">
                                         @if($media->type === 'image')
-                                            <img src="{{ Storage::url($media->thumbnail_path ?? $media->path) }}" 
-                                                 alt="{{ $media->alt_text }}" 
+                                            <img src="{{ Storage::url($media->thumbnail_path ?? $media->path) }}"
+                                                 alt="{{ $media->alt_text }}"
                                                  class="w-full h-full object-cover rounded-lg">
                                         @else
                                             <div class="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
@@ -143,13 +237,10 @@
                                                 </svg>
                                             </div>
                                         @endif
-                                        
+
                                         @if($media->is_featured)
                                             <div class="absolute top-2 left-2">
                                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    <svg class="-ml-0.5 mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                    </svg>
                                                     Evidenza
                                                 </span>
                                             </div>
@@ -157,10 +248,10 @@
                                     </div>
                                 @endforeach
                             </div>
-                            
+
                             @if($project->media->count() > 8)
                                 <div class="mt-4 text-center">
-                                    <a href="{{ route('admin.projects.media.index', $project) }}" 
+                                    <a href="{{ route('admin.projects.media.index', $project) }}"
                                        class="text-sm text-blue-600 hover:text-blue-500">
                                         Visualizza tutti i {{ $project->media->count() }} media →
                                     </a>
@@ -174,8 +265,7 @@
                                 <h3 class="mt-2 text-sm font-medium text-gray-900">Nessun media</h3>
                                 <p class="mt-1 text-sm text-gray-500">Inizia caricando immagini o video.</p>
                                 <div class="mt-6">
-                                    <a href="{{ route('admin.projects.media.index', $project) }}" 
-                                       class="btn btn-primary btn-sm">
+                                    <a href="{{ route('admin.projects.media.index', $project) }}" class="btn btn-primary btn-sm">
                                         Carica Media
                                     </a>
                                 </div>
@@ -200,8 +290,8 @@
                             </svg>
                             Modifica Progetto
                         </a>
-                        
-                        <a href="{{ route('admin.projects.media.index', $project) }}" 
+
+                         <a href="{{ route('admin.projects.media.index', $project) }}" 
                            class="btn btn-secondary w-full justify-center">
                             <svg class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -209,10 +299,10 @@
                             Gestisci Media
                         </a>
 
-                        <form action="{{ route('admin.projects.destroy', $project) }}" method="POST" 
+                        <form action="{{ route('admin.projects.destroy', $project) }}" method="POST"
                               onsubmit="return confirm('Sei sicuro di voler eliminare questo progetto? Questa azione non può essere annullata.')">
                             @csrf
-                            @method('DELETE')
+                             @method('DELETE')
                             <button type="submit" class="btn btn-danger w-full justify-center">
                                 <svg class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
