@@ -10,38 +10,51 @@ class UpdateProjectRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        // Valuta policy/ruolo qui se necessario
         return true;
     }
 
     public function rules(): array
     {
+        $project = $this->route('project'); // model binding {project}
+
         return [
-            'title' => 'required|string|max:255',
-            'slug' => [
+            'title'            => 'required|string|max:255',
+            'slug'             => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('projects', 'slug')->ignore($this->route('project')->id)
+                Rule::unique('projects', 'slug')->ignore($project?->id),
             ],
-            'description' => 'nullable|string',
-            'content' => 'nullable|string',
-            'status' => 'required|in:draft,published',
-            'featured' => 'boolean',
-            'meta_title' => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string|max:255',
+            'description'      => 'required|string|max:1000',
+            'long_description' => 'nullable|string',
+
+            'client'           => 'nullable|string|max:255',
+            'location'         => 'nullable|string|max:255',
+            'project_date'     => 'nullable|date|before_or_equal:today',
+            'area'             => 'nullable|numeric|min:0|max:999999.99',
+
+            'status'           => 'required|in:draft,published,archived',
+            'is_featured'      => 'sometimes|boolean',
+            'sort_order'       => 'nullable|integer|min:0',
+
+            'category_id'      => 'required|exists:categories,id',
+
+            'tags'             => 'nullable|string|max:500',
+
+            'featured_image'   => 'nullable|image|max:2048',
         ];
     }
 
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
+        // Slug auto se mancante
         if (empty($this->slug) && !empty($this->title)) {
-            $this->merge([
-                'slug' => Str::slug($this->title)
-            ]);
+            $this->merge(['slug' => Str::slug($this->title)]);
         }
 
-        $this->merge([
-            'featured' => $this->boolean('featured'),
-        ]);
+        if ($this->has('is_featured')) {
+            $this->merge(['is_featured' => $this->boolean('is_featured')]);
+        }
     }
 }
